@@ -1,4 +1,4 @@
-name: Publish Package to GitHub Packages
+name: Publish Packages
 
 on:
   push:
@@ -11,6 +11,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      id-token: write
 
     steps:
       - name: Checkout Repository
@@ -19,10 +20,10 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24.x'
-          registry-url: 'https://npm.pkg.github.com/'
+          package-manager-cache: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
@@ -39,15 +40,16 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Pack and Publish
+      - name: Pack Package
+        run: pnpm pack
+
+      - name: Publish to npm (OIDC)
+        run: pnpm publish *.tgz --registry https://registry.npmjs.org/ --access public
+
+      - name: Publish to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Pack exactly once to guarantee the same checksum
-          pnpm pack
-
-          # Publish the exact tarball we just created
-          pnpm publish *.tgz --no-git-checks
+        run: pnpm publish *.tgz --registry https://npm.pkg.github.com/
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
