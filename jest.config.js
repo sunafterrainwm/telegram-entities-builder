@@ -1,6 +1,8 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 export default {
-	preset: 'ts-jest',
+	transform: {
+		'^.+\\.(t|j)sx?$': '@swc/jest',
+	},
 	testEnvironment: 'node',
 	clearMocks: true,
 	collectCoverage: true,

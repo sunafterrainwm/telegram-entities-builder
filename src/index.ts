@@ -533,7 +533,7 @@ export class MessageComposer extends EntityBuilderProxy<MessageComposer> {
 
 	public constructor(entities?: IEntityBuilder & { [SymbolMessageComposer]?: never }) {
 		if (entities && SymbolMessageComposer in entities) {
-			throw new Error('Cannot nest MessageComposer inside MessageComposer');
+			throw new TypeError('Cannot nest MessageComposer inside MessageComposer');
 		}
 		super(entities ?? new EntityBuilder());
 	}
@@ -580,3 +580,5 @@ export class MessageComposer extends EntityBuilderProxy<MessageComposer> {
 		};
 	}
 }
+
+export default MessageComposer;
