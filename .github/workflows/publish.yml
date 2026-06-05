@@ -24,7 +24,6 @@ jobs:
         with:
           node-version: '24.x'
           registry-url: https://registry.npmjs.org/
-          always-auth: true
           package-manager-cache: false
 
       - name: Setup pnpm
@@ -53,7 +52,6 @@ jobs:
         with:
           node-version: '24.x'
           registry-url: https://npm.pkg.github.com/
-          always-auth: true
           package-manager-cache: false
 
       - name: Publish to GitHub Packages
