@@ -44,12 +44,12 @@ jobs:
         run: pnpm pack
 
       - name: Publish to npm (OIDC)
-        run: pnpm publish *.tgz --registry https://registry.npmjs.org/ --access public
+        run: pnpm publish *.tgz --registry https://registry.npmjs.org/ --no-git-checks --access public
 
       - name: Publish to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm publish *.tgz --registry https://npm.pkg.github.com/
+        run: pnpm publish *.tgz --registry https://npm.pkg.github.com/ --no-git-checks
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
