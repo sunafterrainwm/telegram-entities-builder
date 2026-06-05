@@ -1,0 +1,68 @@
+{
+	"name": "@sunafterrainwm/telegram-entities-builder",
+	"version": "0.0.0",
+	"author": "sunafterrainwm",
+	"keywords": [],
+	"license": "BSD-3-Clause",
+	"description": "",
+	"files": [
+		"dist",
+		"src"
+	],
+	"main": "dist/index.cjs",
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.cts",
+	"exports": {
+		".": {
+			"import": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
+		}
+	},
+	"scripts": {
+		"build": "tsup",
+		"lint": "eslint . --fix",
+		"test": "jest",
+		"prepare": "husky"
+	},
+	"lint-staged": {
+		"!(*js|*.ts)": "prettier --ignore-unknown --write",
+		"*js|*.ts": [
+			"eslint --fix",
+			"prettier --write"
+		]
+	},
+	"packageManager": "pnpm@10.34.1+sha512.b58fbde6dca66a929538021581f648b4570b6ca19b18e7cbd7f2c07a7b24454155388dacdf08f2af3678e88a6d1fe04f9d609df24bf51735a060ea041b374ab7",
+	"devDependencies": {
+		"@eslint/compat": "^1.2.4",
+		"@eslint/js": "^9.17.0",
+		"@grammyjs/types": "^3.20.0",
+		"@stylistic/eslint-plugin": "^2.12.1",
+		"@trivago/prettier-plugin-sort-imports": "^6.0.2",
+		"@types/jest": "^30.0.0",
+		"@types/lodash-es": "^4.17.12",
+		"@types/node": "^22.10.2",
+		"cheerio": "^1.0.0",
+		"eslint": "^9.24.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-prettier": "^5.5.6",
+		"husky": "^9.1.7",
+		"jest": "^29.7.0",
+		"lint-staged": "^17.0.7",
+		"ts-jest": "^29.4.11",
+		"tsup": "^8.5.1",
+		"typescript": "^5.8.3",
+		"typescript-eslint": "^8.18.1"
+	},
+	"peerDependencies": {
+		"@grammyjs/types": ">=3"
+	},
+	"engines": {
+		"node": ">=18"
+	}
+}
