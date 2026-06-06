@@ -134,3 +134,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# tsdoc & skills
+docs/
+skills/
+llms.txt
+llms-full.txt

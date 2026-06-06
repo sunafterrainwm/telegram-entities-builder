@@ -1,0 +1,7 @@
+{
+	"entryPoints": ["src/index.ts"],
+	"plugin": ["@skillit/typedoc"],
+	"skillsPerPackage": false,
+	"categorizeByGroup": false,
+	"llmsTxt": true
+}

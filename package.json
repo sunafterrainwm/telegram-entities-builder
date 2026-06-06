@@ -5,16 +5,30 @@
 		"name": "sunafterrainwm",
 		"email": "sunafterrainwm@gmail.com"
 	},
-	"keywords": [],
+	"keywords": [
+		"telegram",
+		"entities",
+		"message",
+		"builder",
+		"grammy",
+		"bot",
+		"api",
+		"formatting",
+		"text",
+		"composition"
+	],
 	"license": "BSD-3-Clause",
-	"description": "",
+	"description": "A powerful and flexible builder for creating and manipulating Telegram message entities.",
 	"repository": {
 		"url": "https://github.com/sunafterrainwm/telegram-entities-builder",
 		"type": "git"
 	},
 	"files": [
 		"dist",
-		"src"
+		"src",
+		"skills",
+		"llms.txt",
+		"llms-full.txt"
 	],
 	"type": "module",
 	"main": "dist/index.cjs",
@@ -33,10 +47,11 @@
 		}
 	},
 	"scripts": {
-		"build": "tsdown",
+		"build": "tsdown && pnpm run docs",
 		"lint": "eslint . --fix",
-		"test": "jest",
-		"prepare": "husky"
+		"test": "tsc && jest",
+		"prepare": "husky",
+		"docs": "typedoc"
 	},
 	"lint-staged": {
 		"!(*js|*.ts)": "prettier --ignore-unknown --write",
@@ -50,6 +65,8 @@
 		"@eslint/compat": "^1.2.4",
 		"@eslint/js": "^9.17.0",
 		"@grammyjs/types": "^3.20.0",
+		"@jest/globals": "^30.4.1",
+		"@skillit/typedoc": "^1.1.0",
 		"@stylistic/eslint-plugin": "^2.12.1",
 		"@swc/core": "^1.15.40",
 		"@swc/jest": "^0.2.39",
@@ -66,6 +83,7 @@
 		"lint-staged": "^17.0.7",
 		"ts-jest": "^29.4.11",
 		"tsdown": "^0.22.2",
+		"typedoc": "^0.28.19",
 		"typescript": "^5.8.3",
 		"typescript-eslint": "^8.18.1"
 	},

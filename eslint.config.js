@@ -13,7 +13,26 @@ const gitignorePath = path.resolve(__dirname, '.gitignore');
 export default tseslint.config(
 	includeIgnoreFile(gitignorePath),
 	eslint.configs.recommended,
-	...tseslint.configs.strict,
-	...tseslint.configs.stylistic,
+	...tseslint.configs.strictTypeChecked,
+	...tseslint.configs.stylisticTypeChecked,
 	eslintPluginPrettierRecommended,
+	{
+		languageOptions: {
+			parserOptions: {
+				projectService: true,
+			},
+		},
+		rules: {
+			'@typescript-eslint/no-empty-object-type': [
+				'error',
+				{
+					allowInterfaces: 'with-single-extends',
+				},
+			],
+		},
+	},
+	{
+		files: ['**/*.js'],
+		extends: [tseslint.configs.disableTypeChecked],
+	},
 );
