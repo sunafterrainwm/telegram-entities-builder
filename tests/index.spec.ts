@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { EntityBuilder, EntityBuilderProxy, LazyEntityBuilder, MessageComposer, escapeTag } from '../src/index.js';
+import { EntityBuilder, EntityBuilderProxy, LazyEntityBuilder, MessageComposer, escapeTag } from '../src/index.ts';
 
 describe('EntityBuilder', () => {
 	it('should build text payload correctly', () => {

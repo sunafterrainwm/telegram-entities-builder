@@ -1,3 +1,3 @@
-import Default, * as Named from './index.js';
+import Default, * as Named from './index.ts';
 
 export = Object.assign(Default, Named);
