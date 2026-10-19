@@ -24,6 +24,9 @@
 		"type": "git"
 	},
 	"files": [
+		"AGENTS.md",
+		"CHANGELOG.md",
+		"agents",
 		"dist",
 		"src",
 		"skills",
@@ -64,7 +67,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^1.2.4",
 		"@eslint/js": "^9.17.0",
-		"@grammyjs/types": "^3.20.0",
+		"@grammyjs/types": "^5.0.0",
 		"@jest/globals": "^30.4.1",
 		"@skillit/typedoc": "^1.1.0",
 		"@stylistic/eslint-plugin": "^2.12.1",
@@ -88,7 +91,7 @@
 		"typescript-eslint": "^8.18.1"
 	},
 	"peerDependencies": {
-		"@grammyjs/types": ">=3"
+		"@grammyjs/types": ">=5.0.0"
 	},
 	"engines": {
 		"node": ">=18"

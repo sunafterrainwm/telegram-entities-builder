@@ -29,6 +29,22 @@ export default tseslint.config(
 					allowInterfaces: 'with-single-extends',
 				},
 			],
+			'@typescript-eslint/restrict-template-expressions': [
+				'error',
+				{
+					allowNumber: true,
+				},
+			],
+		},
+	},
+	{
+		// The parsers index strings, arrays and regular-expression capture groups in
+		// hot loops. `noUncheckedIndexedAccess` is off, so TypeScript types those
+		// accesses as always defined while at runtime they are not, which makes the
+		// rule flag the guards that actually keep the parsers from crashing.
+		files: ['src/parse/**/*.ts'],
+		rules: {
+			'@typescript-eslint/no-unnecessary-condition': 'off',
 		},
 	},
 	{
