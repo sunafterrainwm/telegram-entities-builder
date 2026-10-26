@@ -1,6 +1,6 @@
 import type * as TT from '@grammyjs/types';
 
-import { RichBlockBuilder } from './block.ts';
+import { type RichBlockBuildOptions, RichBlockBuilder } from './block.ts';
 
 /**
  * Message-level options of a Telegram rich message.
@@ -36,8 +36,8 @@ export interface RichMessageBuilderOptions {
  * import { RichMessageBuilder, fr } from "@sunafterrainwm/telegram-entities-builder";
  *
  * const builder = new RichMessageBuilder();
- * builder.heading(fr`Welcome ${fr.bold`User`}`, 1);
- * builder.paragraph('This is a rich message.');
+ * builder.heading(1).add(fr`Welcome ${fr.bold`User`}`);
+ * builder.add`This is a rich message.`;
  *
  * await bot.api.sendRichMessage({
  * 	chat_id: chatId,
@@ -63,10 +63,12 @@ export class RichMessageBuilder<F = never> extends RichBlockBuilder<F> {
 	/**
 	 * Builds the `rich_message` payload.
 	 *
+	 * @param options - Whether to freeze every reference afterwards, and whether to
+	 *   check for the empty fields the Bot API rejects.
 	 * @returns An `InputRichMessage` carrying the blocks.
 	 */
-	public buildMessage(): TT.InputRichMessage<F> {
-		const message: TT.InputRichMessage<F> = { blocks: this.build() };
+	public buildMessage(options: RichBlockBuildOptions = {}): TT.InputRichMessage<F> {
+		const message: TT.InputRichMessage<F> = { blocks: this.build(options) };
 		if (this.options.is_rtl !== undefined) {
 			message.is_rtl = this.options.is_rtl;
 		}
@@ -83,11 +85,16 @@ export class RichMessageBuilder<F = never> extends RichBlockBuilder<F> {
 	 * available on a builder whose file type is `never`.
 	 *
 	 * @param this - A builder whose file type is `never`, so nothing is uploaded.
+	 * @param options - Whether to freeze every reference afterwards, and whether to
+	 *   check for the empty fields the Bot API rejects.
 	 * @returns An `InputRichMessageContent`.
 	 * @since Bot API 10.2
 	 */
-	public buildInline(this: RichMessageBuilder): TT.InputRichMessageContent {
-		return { rich_message: this.buildMessage() };
+	public buildInline(
+		this: RichMessageBuilder,
+		options: RichBlockBuildOptions = {},
+	): TT.InputRichMessageContent {
+		return { rich_message: this.buildMessage(options) };
 	}
 
 	/**
@@ -100,7 +107,7 @@ export class RichMessageBuilder<F = never> extends RichBlockBuilder<F> {
 	 */
 	public override clone(): RichMessageBuilder<F> {
 		const instance = new RichMessageBuilder<F>(this.options);
-		instance._blocks = [...this._blocks];
+		instance._slots = [...this._slots];
 		return instance;
 	}
 }

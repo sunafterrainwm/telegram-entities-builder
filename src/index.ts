@@ -52,5 +52,11 @@ export { default } from './message.ts';
 export * from './rich-message/message.ts';
 export * from './rich-message/text.ts';
 export * from './rich-message/block.ts';
+export {
+	ReadonlyRichBlockRef,
+	type RichBlockRef,
+	type RichRef,
+} from './rich-message/ref.ts';
+export { richMessageLimits, type RichBlockMeasurement } from './rich-message/measure.ts';
 export * from './parse/index.ts';
 export * from './utils/html.ts';

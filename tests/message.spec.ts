@@ -587,11 +587,11 @@ describe('formatText tagged template and format helpers', () => {
 		).toMatchObject({ type: 'date_time', unix_time: 1647531900 });
 	});
 
-	it('should expose format helpers bound to a builder', () => {
+	it('should take the standalone format helpers through add()', () => {
 		const builder = new EntityBuilder();
 		builder.addText('Hi ');
-		expect(builder.f.bold`there`).toBe(builder);
-		expect(builder.f.url('https://example.com')`link`).toBe(builder);
+		expect(builder.add(f.bold`there`)).toBe(builder);
+		expect(builder.add(f.url('https://example.com')`link`)).toBe(builder);
 
 		const payload = builder.buildText();
 		expect(payload.text).toBe('Hi therelink');
@@ -599,7 +599,17 @@ describe('formatText tagged template and format helpers', () => {
 			{ type: 'bold', offset: 3, length: 5 },
 			{ type: 'text_link', offset: 8, length: 4, url: 'https://example.com' },
 		] satisfies TT.MessageEntity[]);
-		expect((builder.f as unknown as Record<string, unknown>).nope).toBeUndefined();
+	});
+
+	it('should accept a tagged template through add()', () => {
+		const builder = new EntityBuilder();
+		builder.add`Hi ${f.bold`there`}`;
+
+		const payload = builder.buildText();
+		expect(payload.text).toBe('Hi there');
+		expect(payload.entities).toEqual([
+			{ type: 'bold', offset: 3, length: 5 },
+		] satisfies TT.MessageEntity[]);
 	});
 
 	it('should accept an independent builder as a resolvable item', () => {

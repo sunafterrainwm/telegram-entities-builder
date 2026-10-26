@@ -14,12 +14,14 @@ suggestions:
    code is worse than no reference, because the next reader trusts it. If a change makes
    an entry wrong, rewrite the entry; if it adds a decision, add an entry.
 
-| Read before                                                            | Document                                            |
-| ---------------------------------------------------------------------- | --------------------------------------------------- |
-| bumping `@grammyjs/types`, adding `@since`, answering "which version?" | [bot-api-versions.md](./agents/bot-api-versions.md) |
-| touching `parseHtml`, `parseMarkdownV2`, `parseMarkdown`               | [tdlib-port.md](./agents/tdlib-port.md)             |
-| touching `parseRichHtml`, `parseRichMarkdown`, the HTML tokenizer      | [rich-parsers.md](./agents/rich-parsers.md)         |
-| touching `weak`, `on`, selectors, handlers, `HtmlTransform`            | [parse-options.md](./agents/parse-options.md)       |
+| Read before                                                             | Document                                            |
+| ----------------------------------------------------------------------- | --------------------------------------------------- |
+| bumping `@grammyjs/types`, adding `@since`, answering "which version?"  | [bot-api-versions.md](./agents/bot-api-versions.md) |
+| touching the rich block builders, block references, `build()`, `f`/`fr` | [rich-builders.md](./agents/rich-builders.md)       |
+| writing or changing any validation of rich message content              | [rich-limit.md](./agents/rich-limit.md)             |
+| touching `parseHtml`, `parseMarkdownV2`, `parseMarkdown`                | [tdlib-port.md](./agents/tdlib-port.md)             |
+| touching `parseRichHtml`, `parseRichMarkdown`, the HTML tokenizer       | [rich-parsers.md](./agents/rich-parsers.md)         |
+| touching `weak`, `on`, selectors, handlers, `HtmlTransform`             | [parse-options.md](./agents/parse-options.md)       |
 
 ## What this package is
 
@@ -63,9 +65,15 @@ per-feature map the `@since` tags come from:
   `pnpm run docs` enforces this.
 - `@since Bot API x.y` goes only where a feature needs that version of the server, and
   never in `src/parse` — see [bot-api-versions.md](./agents/bot-api-versions.md).
-- Builders never mutate what they return: `build()`, `blocks` and `toSegments()` hand
-  back fresh arrays. Rich blocks are shallow-copied on `clone()` because they may hold
-  file handles that `structuredClone` cannot copy — treat built blocks as immutable.
+- `build()` and `toSegments()` hand back fresh arrays, but a rich block method returns a
+  **reference** that stays writable until it is finished, so a block's content is not
+  settled until `build()` resolves it. See
+  [rich-builders.md](./agents/rich-builders.md).
+- Rich blocks are shallow-copied on `clone()`: they may hold `InputFile` handles that
+  `structuredClone` cannot copy. That is a limitation, not a guarantee — a cloned
+  builder shares its blocks and its references with the original, so do not modify a
+  block you got out of one builder and expect the other to be unaffected, and do not
+  reach for `structuredClone` on a block tree.
 - `src/parse` turns `@typescript-eslint/no-unnecessary-condition` off (see
   `eslint.config.js`). `noUncheckedIndexedAccess` is off project-wide, so TypeScript
   types string/array indexing and regular-expression capture groups as always defined
@@ -84,8 +92,10 @@ src/
   cjs.cts                  CJS interop shim
   message.ts               classic entity builders, escapeTag, formatText/f
   rich-message/
+    ref.ts                 RefState, RichBlockRef, ReadonlyRichBlockRef
+    measure.ts             richMessageLimits, code-point and block measuring
     text.ts                RichTextBuilder, button factories, formatRichText/fr
-    block.ts               RichBlockBuilder, RichListBuilder, cell/caption helpers
+    block.ts               RichBlockBuilder, RichListBuilder, the block references
     message.ts             RichMessageBuilder
   parse/
     internal.ts            char helpers, character references, tg:// links  (internal)

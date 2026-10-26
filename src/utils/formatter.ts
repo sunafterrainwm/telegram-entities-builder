@@ -35,16 +35,16 @@ type StyleMethods<TItem, TInterface extends IBuilderLike<TItem>> = Exclude<
 	ExcludedMethods
 >;
 
-export interface StyleFunction<
-	TItem,
-	TInterface extends IBuilderLike<TItem>,
-	TBuilder extends TInterface,
-> {
-	<B extends TInterface>(
-		builder: B,
-	): (strings: TemplateStringsArray, ...values: TItem[]) => B;
-	(strings: TemplateStringsArray, ...values: TItem[]): TBuilder;
-}
+/**
+ * A helper that formats a tagged template into a fresh builder.
+ *
+ * @typeParam TItem - The item type the builder accumulates.
+ * @typeParam TBuilder - The builder the helper constructs.
+ */
+export type StyleFunction<TItem, TBuilder> = (
+	strings: TemplateStringsArray,
+	...values: TItem[]
+) => TBuilder;
 
 type ParameterizedStyleMethods<TItem, TInterface extends IBuilderLike<TItem>> = Exclude<
 	{
@@ -60,30 +60,28 @@ type ParameterizedStyleMethods<TItem, TInterface extends IBuilderLike<TItem>> = 
 	ExcludedMethods | StyleMethods<TItem, TInterface>
 >;
 
-export interface ParameterizedStyleFunction<
+/**
+ * A helper that takes the entity's own parameters first and the text second.
+ *
+ * @typeParam TItem - The item type the builder accumulates.
+ * @typeParam TInterface - The interface the method keys are derived from.
+ * @typeParam TBuilder - The builder the helper constructs.
+ * @typeParam TAllowFallback - Whether the first parameter doubles as the text.
+ * @typeParam K - The method this helper stands for.
+ */
+export type ParameterizedStyleFunction<
 	TItem,
 	TInterface extends IBuilderLike<TItem>,
 	TBuilder extends TInterface,
 	TAllowFallback extends boolean,
 	K extends ParameterizedStyleMethods<TItem, TInterface>,
-> {
-	<B extends TInterface>(
-		builder: B,
-	): (...args: Shift<ParamsOf<TInterface[K]>>) => TAllowFallback extends true
-		? {
-				// eslint-disable-next-line @typescript-eslint/unified-signatures
-				(strings: TemplateStringsArray, ...values: TItem[]): B;
-				(): B;
-			}
-		: (strings: TemplateStringsArray, ...values: TItem[]) => B;
-	(...args: Shift<ParamsOf<TBuilder[K]>>): TAllowFallback extends true
-		? {
-				// eslint-disable-next-line @typescript-eslint/unified-signatures
-				(strings: TemplateStringsArray, ...values: TItem[]): TBuilder;
-				(): TBuilder;
-			}
-		: (strings: TemplateStringsArray, ...values: TItem[]) => TBuilder;
-}
+> = (...args: Shift<ParamsOf<TBuilder[K]>>) => TAllowFallback extends true
+	? {
+			// eslint-disable-next-line @typescript-eslint/unified-signatures
+			(strings: TemplateStringsArray, ...values: TItem[]): TBuilder;
+			(): TBuilder;
+		}
+	: (strings: TemplateStringsArray, ...values: TItem[]) => TBuilder;
 
 type EmbedMethods<TItem, TInterface extends IBuilderLike<TItem>> = Exclude<
 	FilterKeysByValue<
@@ -96,15 +94,20 @@ type EmbedMethods<TItem, TInterface extends IBuilderLike<TItem>> = Exclude<
 	| ParameterizedStyleMethods<TItem, TInterface>
 >;
 
-export interface EmbedFunction<
+/**
+ * A helper for a method that takes no text at all.
+ *
+ * @typeParam TItem - The item type the builder accumulates.
+ * @typeParam TInterface - The interface the method keys are derived from.
+ * @typeParam TBuilder - The builder the helper constructs.
+ * @typeParam K - The method this helper stands for.
+ */
+export type EmbedFunction<
 	TItem,
 	TInterface extends IBuilderLike<TItem>,
 	TBuilder extends TInterface,
 	K extends EmbedMethods<TItem, TInterface>,
-> {
-	<B extends TInterface>(builder: B): (...args: ParamsOf<TInterface[K]>) => B;
-	(...args: ParamsOf<TBuilder[K]>): TBuilder;
-}
+> = (...args: ParamsOf<TBuilder[K]>) => TBuilder;
 
 export function formatText<TItem, TBuilder extends IBuilderLike<TItem>>(
 	Builder: new () => TBuilder,
@@ -127,38 +130,17 @@ export function createFormatter<
 	TItem,
 	TInterface extends IBuilderLike<TItem>,
 	TBuilder extends TInterface = TInterface,
->({
-	Builder,
-	Interface,
-}: {
-	Builder: new () => TBuilder;
-	Interface?: abstract new () => TInterface;
-}) {
-	Interface ??= Builder;
+>({ Builder }: { Builder: new () => TBuilder }) {
 	const mergeTpl = formatText<TItem, TBuilder>(Builder);
 
 	return {
 		mergeTpl,
-		style(
-			methodName: StyleMethods<TItem, TBuilder>,
-		): StyleFunction<TItem, TInterface, TBuilder> {
-			return function (
-				...args: [TInterface] | [strings: TemplateStringsArray, ...values: TItem[]]
-			) {
-				if (args.length === 1 && args[0] instanceof Interface) {
-					const builder = args[0];
-					return (strings: TemplateStringsArray, ...values: TItem[]) => {
-						return (builder[methodName] as (args: TInterface) => TInterface)(
-							mergeTpl(strings, ...values),
-						);
-					};
-				}
-				const strings = args[0] as TemplateStringsArray;
-				const values = args.slice(1) as TItem[];
+		style(methodName: StyleMethods<TItem, TBuilder>): StyleFunction<TItem, TBuilder> {
+			return function (strings: TemplateStringsArray, ...values: TItem[]) {
 				return (new Builder()[methodName] as (args: TBuilder) => TBuilder)(
 					mergeTpl(strings, ...values),
 				);
-			} as StyleFunction<TItem, TInterface, TBuilder>;
+			} as StyleFunction<TItem, TBuilder>;
 		},
 		styleWithParam<
 			K extends ParameterizedStyleMethods<TItem, TInterface>,
@@ -167,25 +149,7 @@ export function createFormatter<
 			methodName: K,
 			useParamAsFallbackText?: TAllowFallback,
 		): ParameterizedStyleFunction<TItem, TInterface, TBuilder, TAllowFallback, K> {
-			return function (
-				...args: [TInterface] | [strings: TemplateStringsArray, ...values: TItem[]]
-			): unknown {
-				if (args.length === 1 && args[0] instanceof Interface) {
-					const builder = args[0];
-					return (...propArgs: Shift<ParamsOf<TInterface[K]>>) => {
-						return (strings?: TemplateStringsArray, ...values: TItem[]) => {
-							const text = useParamAsFallbackText
-								? strings
-									? mergeTpl(strings, ...values)
-									: propArgs[0]
-								: // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-									mergeTpl(strings!, ...values);
-							return (
-								builder[methodName] as (args0: unknown, ...rest: unknown[]) => TInterface
-							)(text, ...propArgs);
-						};
-					};
-				}
+			return function (...args: unknown[]): unknown {
 				return (strings?: TemplateStringsArray, ...values: TItem[]) => {
 					const text = useParamAsFallbackText
 						? strings
@@ -203,19 +167,54 @@ export function createFormatter<
 		embed<K extends EmbedMethods<TItem, TInterface>>(
 			methodName: K,
 		): EmbedFunction<TItem, TInterface, TBuilder, K> {
-			return function (
-				...args: [TInterface] | [strings: TemplateStringsArray, ...values: TItem[]]
-			): unknown {
-				if (args.length === 1 && args[0] instanceof Interface) {
-					const builder = args[0];
-					return (...directArgs: ParamsOf<TInterface[K]>) => {
-						return (builder[methodName] as (...args: unknown[]) => TInterface)(
-							...directArgs,
-						);
-					};
-				}
+			return function (...args: unknown[]): unknown {
 				return (new Builder()[methodName] as (...args: unknown[]) => TBuilder)(...args);
 			} as EmbedFunction<TItem, TInterface, TBuilder, K>;
 		},
 	};
+}
+
+/**
+ * Tells a tagged-template invocation apart from an ordinary argument.
+ *
+ * A `TemplateStringsArray` is a real array carrying a `raw` property, and neither
+ * `ResolvableRichText` nor `ResolvableRichBlocks` admits such a value: a plain string
+ * array lacks `raw`, and a `TemplateStringsArray` is `readonly`, so the two are
+ * mutually unassignable at the type level as well.
+ *
+ * @param value - The first argument the method received.
+ * @returns Whether the method was called as a tagged template.
+ *
+ * @internal
+ */
+export function isTemplateStrings(value: unknown): value is TemplateStringsArray {
+	return Array.isArray(value) && 'raw' in value;
+}
+
+/**
+ * Interleaves the literal parts of a tagged template with its interpolated values.
+ *
+ * Empty literal parts are dropped, so that `` `${x}` `` yields just the value.
+ *
+ * @param strings - The literal parts of the template.
+ * @param values - The interpolated values, in order.
+ * @returns The parts and values in source order.
+ *
+ * @internal
+ */
+export function interleaveTemplate<T>(
+	strings: TemplateStringsArray,
+	values: T[],
+): (string | T)[] {
+	const parts: (string | T)[] = [];
+	for (let i = 0; i < strings.length; i++) {
+		const literal = strings[i];
+		if (literal) {
+			parts.push(literal);
+		}
+		if (i < values.length) {
+			parts.push(values[i]);
+		}
+	}
+	return parts;
 }

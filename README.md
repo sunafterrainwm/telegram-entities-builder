@@ -53,17 +53,41 @@ import {
 } from '@sunafterrainwm/telegram-entities-builder';
 
 const rich = new RichMessageBuilder();
-rich.heading(fr`Release ${fr.bold`2.0`}`, 1);
-rich.paragraph('Everything is new.');
-rich.list((list) => {
-	list.text('Blocks are sent as data');
-	list.text('Captions carry credit', { is_checked: true });
-});
+rich.heading(1).add(fr`Release ${fr.bold`2.0`}`);
+rich.add`Everything is new.`;
+
+const list = rich.list();
+list.text('Blocks are sent as data');
+list.text('Captions carry credit', { is_checked: true });
+
 rich.photo('photo-file-id', { caption: 'A screenshot', credit: 'Me' });
 rich.buttons([button.url('Read more', 'https://example.com')]);
 
 await bot.api.sendRichMessage({ chat_id: chatId, rich_message: rich.buildMessage() });
 // { blocks: [ { type: "heading", … }, … ] }
+```
+
+Every block method inserts its block at once and hands back a **reference**, so a block
+can take its position before its content is known — a header paragraph that keeps growing,
+a list filled in by a recursive walk, a `details` block positioned before its contents are
+collected:
+
+```typescript
+const info = rich.paragraph(); // position fixed here
+const files = rich.details('File list', { is_open: true });
+
+info.bold('Name').add('：').code('debian-12.iso'); // content later
+files.list().text('debian-12.iso');
+
+info.finish(); // optional: freezes the reference and everything inside it
+```
+
+`build()` resolves every reference and checks the fields the Bot API refuses to accept
+empty. The size limits are not checked for you — measure and decide what to drop:
+
+```typescript
+const { characters, topLevelBlocks, depth } = rich.measureBlock();
+rich.assertWithinLimits(); // throws RangeError past 32768 code points, 500 blocks or depth 16
 ```
 
 To upload new files inside a rich message, parameterize the builder with your client's

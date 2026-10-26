@@ -216,18 +216,43 @@ describe('RichTextBuilder', () => {
 		]);
 	});
 
-	it('should expose format helpers bound to the instance', () => {
+	it('should take the standalone format helpers through add()', () => {
 		const builder = new RichTextBuilder();
-		expect(builder.fr.bold`bound`).toBe(builder);
-		expect(builder.fr.url('https://example.com')`link`).toBe(builder);
-		expect(builder.fr.anchor('top')).toBe(builder);
+		expect(builder.add(fr.bold`bound`)).toBe(builder);
+		expect(builder.add(fr.url('https://example.com')`link`)).toBe(builder);
+		expect(builder.add(fr.anchor('top'))).toBe(builder);
 
 		expect(builder.build()).toEqual([
 			{ type: 'bold', text: 'bound' },
 			{ type: 'url', text: 'link', url: 'https://example.com' },
 			{ type: 'anchor', name: 'top' },
 		]);
-		expect((builder.fr as unknown as Record<string, unknown>).nope).toBeUndefined();
+	});
+
+	it('should accept a tagged template through add()', () => {
+		const builder = new RichTextBuilder();
+		builder.add`plain`;
+		expect(builder.build()).toEqual(['plain']);
+
+		const interpolated = new RichTextBuilder();
+		interpolated.add`a${fr.bold`b`}c`;
+		expect(interpolated.build()).toEqual(['a', { type: 'bold', text: 'b' }, 'c']);
+	});
+
+	it('should not mistake an ordinary string array for a template', () => {
+		const builder = new RichTextBuilder();
+		const parts: string[] = ['a', 'b'];
+		builder.add(parts);
+		expect(builder.build()).toEqual(['a', 'b']);
+	});
+
+	it('should measure text in code points, not UTF-16 code units', () => {
+		const grin = String.fromCodePoint(0x1f600);
+		const builder = new RichTextBuilder();
+		builder.add(grin + grin).bold('ab');
+		// two astral characters are four UTF-16 code units but only two code points
+		expect((grin + grin).length).toBe(4);
+		expect(builder.measureText()).toBe(4);
 	});
 });
 

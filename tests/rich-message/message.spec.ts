@@ -7,8 +7,8 @@ import { fr } from '../../src/rich-message/text.ts';
 describe('RichMessageBuilder', () => {
 	it('should build a payload out of blocks rather than HTML', () => {
 		const builder = new RichMessageBuilder();
-		builder.heading(fr`Welcome ${fr.bold`User`}`, 2);
-		builder.paragraph('Enjoy the builder.');
+		builder.heading(2).add(fr`Welcome ${fr.bold`User`}`);
+		builder.add`Enjoy the builder.`;
 
 		expect(builder.buildMessage()).toEqual({
 			blocks: [
@@ -22,18 +22,25 @@ describe('RichMessageBuilder', () => {
 		} satisfies TT.InputRichMessage<never>);
 	});
 
-	it('should emit an empty block list for an empty builder', () => {
-		expect(new RichMessageBuilder().buildMessage()).toEqual({ blocks: [] });
+	it('should refuse an empty block list, which the Bot API rejects', () => {
+		expect(() => new RichMessageBuilder().buildMessage()).toThrow(
+			'blocks must not be empty',
+		);
+		expect(new RichMessageBuilder().buildMessage({ checkEmpty: false })).toEqual({
+			blocks: [],
+		});
 	});
 
 	it('should only emit the options that were set', () => {
-		expect(new RichMessageBuilder().buildMessage()).not.toHaveProperty('is_rtl');
+		const plain = new RichMessageBuilder();
+		plain.divider();
+		expect(plain.buildMessage()).not.toHaveProperty('is_rtl');
 
 		const builder = new RichMessageBuilder({
 			is_rtl: true,
 			skip_entity_detection: false,
 		});
-		builder.paragraph('text');
+		builder.add`text`;
 
 		const message = builder.buildMessage();
 		expect(message.is_rtl).toBe(true);
@@ -42,7 +49,7 @@ describe('RichMessageBuilder', () => {
 
 	it('should never emit html or markdown', () => {
 		const builder = new RichMessageBuilder();
-		builder.paragraph('<b>not escaped, not serialized</b>');
+		builder.add`<b>not escaped, not serialized</b>`;
 
 		const message = builder.buildMessage();
 		expect(message).not.toHaveProperty('html');
@@ -55,7 +62,7 @@ describe('RichMessageBuilder', () => {
 
 	it('should build inline query result content', () => {
 		const builder = new RichMessageBuilder();
-		builder.paragraph('inline');
+		builder.add`inline`;
 
 		expect(builder.buildInline()).toEqual({
 			rich_message: { blocks: [{ type: 'paragraph', text: 'inline' }] },
@@ -64,10 +71,10 @@ describe('RichMessageBuilder', () => {
 
 	it('should clone blocks and options', () => {
 		const builder = new RichMessageBuilder({ skip_entity_detection: true });
-		builder.paragraph('original');
+		builder.add`original`;
 
 		const cloned = builder.clone();
-		cloned.paragraph('cloned');
+		cloned.add`cloned`;
 
 		expect(builder.build()).toHaveLength(1);
 		expect(cloned.build()).toHaveLength(2);
@@ -79,11 +86,11 @@ describe('RichMessageBuilder', () => {
 
 	it('should accept nested builders as block content', () => {
 		const nested = new RichMessageBuilder();
-		nested.paragraph('nested content');
+		nested.add`nested content`;
 
 		const builder = new RichMessageBuilder();
-		builder.blockquote(nested, { credit: 'Credit' });
-		builder.details('Summary', nested);
+		builder.blockquote({ credit: 'Credit' }).add(nested);
+		builder.details('Summary').add(nested);
 
 		expect(builder.build()).toEqual([
 			{
@@ -101,10 +108,10 @@ describe('RichMessageBuilder', () => {
 
 	it('should support fork and merge inherited from RichBlockBuilder', () => {
 		const parent = new RichMessageBuilder();
-		parent.paragraph('start');
+		parent.add`start`;
 
 		const child = parent.fork();
-		child.paragraph('forked');
+		child.add`forked`;
 		child.merge();
 
 		expect(parent.buildMessage().blocks).toHaveLength(2);

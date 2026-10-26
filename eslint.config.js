@@ -35,6 +35,14 @@ export default tseslint.config(
 					allowNumber: true,
 				},
 			],
+			// `builder.add`text`;` is a call, not a dangling expression, and it is the
+			// idiom the tagged-template overloads of `add()` exist to support.
+			'@typescript-eslint/no-unused-expressions': [
+				'error',
+				{
+					allowTaggedTemplates: true,
+				},
+			],
 		},
 	},
 	{

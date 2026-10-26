@@ -1,6 +1,10 @@
 import type * as TT from '@grammyjs/types';
 
-import { createFormatter } from './utils/formatter.ts';
+import {
+	createFormatter,
+	interleaveTemplate,
+	isTemplateStrings,
+} from './utils/formatter.ts';
 
 type Telegram = TT.ApiMethods<never>;
 type ApiParameters<T extends keyof Telegram> = Parameters<Telegram[T]>[0];
@@ -125,11 +129,14 @@ export function unwrapText(
 }
 
 /**
- * Format helpers bound to an entity builder, exposed as `builder.f`.
+ * The format helpers of {@link f}.
+ *
+ * Each helper builds a fresh builder out of a tagged template, which is then handed to
+ * `add()`: `builder.add(f.bold`hi`)`.
  *
  * @category Types
  */
-export interface BoundFormatText<B extends IEntityBuilderBase> {
+export interface FormatTextHelpers<B extends IEntityBuilderBase> {
 	/** Format text as bold (bold text) */
 	bold(strings: TemplateStringsArray, ...values: ResolvableEntityItem[]): B;
 	/** Format text as italic (italic text) */
@@ -192,11 +199,6 @@ export interface BoundFormatText<B extends IEntityBuilderBase> {
  */
 export abstract class IEntityBuilderBase {
 	/**
-	 * Proxy getter for format helpers bound to this builder.
-	 */
-	public abstract readonly f: BoundFormatText<this>;
-
-	/**
 	 * Appends plain text.
 	 *
 	 * @param text - The text to append.
@@ -235,6 +237,17 @@ export abstract class IEntityBuilderBase {
 	 * @returns The current builder instance for chaining.
 	 */
 	public abstract add(text: ResolvableEntityItem): this;
+	/**
+	 * Appends content written as a tagged template.
+	 *
+	 * @param strings - The literal parts of the template.
+	 * @param values - The interpolated resolvable items.
+	 * @returns The current builder instance for chaining.
+	 */
+	public abstract add(
+		strings: TemplateStringsArray,
+		...values: ResolvableEntityItem[]
+	): this;
 
 	/**
 	 * Format text as bold (bold text).
@@ -562,20 +575,6 @@ export class EntityBuilder extends IEntityBuilder {
 		return this.#parent !== undefined;
 	}
 
-	/** @inheritDoc */
-	public get f(): BoundFormatText<this> {
-		return new Proxy(f, {
-			get: (target, prop) => {
-				if (prop in target) {
-					return (
-						target[prop as keyof typeof f] as (builder: IEntityBuilderBase) => unknown
-					)(this);
-				}
-				return undefined;
-			},
-		}) as unknown as BoundFormatText<this>;
-	}
-
 	/**
 	 * @inheritDoc.
 	 *
@@ -639,8 +638,14 @@ export class EntityBuilder extends IEntityBuilder {
 		return this;
 	}
 
-	public add(text: ResolvableEntityItem): this {
-		unwrapText(this, text);
+	public add(text: ResolvableEntityItem): this;
+	/** @inheritDoc */
+	public add(strings: TemplateStringsArray, ...values: ResolvableEntityItem[]): this;
+	public add(
+		text: ResolvableEntityItem | TemplateStringsArray,
+		...values: ResolvableEntityItem[]
+	): this {
+		unwrapText(this, isTemplateStrings(text) ? interleaveTemplate(text, values) : text);
 		return this;
 	}
 
@@ -1039,20 +1044,6 @@ export class LazyEntityBuilder extends IEntityBuilderBase {
 		return this.#parent !== undefined;
 	}
 
-	/** @inheritDoc */
-	public get f(): BoundFormatText<this> {
-		return new Proxy(f, {
-			get: (target, prop) => {
-				if (prop in target) {
-					return (
-						target[prop as keyof typeof f] as (builder: IEntityBuilderBase) => unknown
-					)(this);
-				}
-				return undefined;
-			},
-		}) as unknown as BoundFormatText<this>;
-	}
-
 	/**
 	 * Flattens the lazy segments into a new EntityBuilder instance.
 	 *
@@ -1110,8 +1101,14 @@ export class LazyEntityBuilder extends IEntityBuilderBase {
 		return this;
 	}
 
-	public add(text: ResolvableEntityItem): this {
-		unwrapText(this, text);
+	public add(text: ResolvableEntityItem): this;
+	/** @inheritDoc */
+	public add(strings: TemplateStringsArray, ...values: ResolvableEntityItem[]): this;
+	public add(
+		text: ResolvableEntityItem | TemplateStringsArray,
+		...values: ResolvableEntityItem[]
+	): this {
+		unwrapText(this, isTemplateStrings(text) ? interleaveTemplate(text, values) : text);
 		return this;
 	}
 
@@ -1320,20 +1317,6 @@ abstract class AbstractEntityBuilderProxy<
 		return this._entities.hasParent;
 	}
 
-	/** @inheritDoc */
-	public get f(): BoundFormatText<this> {
-		return new Proxy(f, {
-			get: (target, prop) => {
-				if (prop in target) {
-					return (
-						target[prop as keyof typeof f] as (builder: IEntityBuilderBase) => unknown
-					)(this);
-				}
-				return undefined;
-			},
-		}) as unknown as BoundFormatText<this>;
-	}
-
 	/**
 	 * @inheritDoc
 	 * @param args - The arguments passed to the underlying builder's addText.
@@ -1372,8 +1355,14 @@ abstract class AbstractEntityBuilderProxy<
 		return this;
 	}
 
-	public add(text: ResolvableEntityItem): this {
-		this._entities.add(text);
+	public add(text: ResolvableEntityItem): this;
+	/** @inheritDoc */
+	public add(strings: TemplateStringsArray, ...values: ResolvableEntityItem[]): this;
+	public add(
+		text: ResolvableEntityItem | TemplateStringsArray,
+		...values: ResolvableEntityItem[]
+	): this {
+		this._entities.add(isTemplateStrings(text) ? interleaveTemplate(text, values) : text);
 		return this;
 	}
 	public bold(text: ResolvableEntityItem): this {
@@ -1778,7 +1767,6 @@ export default MessageBuilder;
 
 const fmt = createFormatter<ResolvableEntityItem, IEntityBuilderBase, LazyEntityBuilder>({
 	Builder: LazyEntityBuilder,
-	Interface: IEntityBuilderBase,
 });
 
 /**
@@ -1826,4 +1814,4 @@ export const f = Object.assign(formatText, {
 	textMention: fmt.styleWithParam('textMention'),
 	customEmoji: fmt.styleWithParam('customEmoji'),
 	dateTime: fmt.styleWithParam('dateTime'),
-}) satisfies BoundFormatText<LazyEntityBuilder>;
+}) satisfies FormatTextHelpers<LazyEntityBuilder>;

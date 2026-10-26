@@ -56,7 +56,7 @@ describe('parsing into a builder', () => {
 		const builder = new RichMessageBuilder({ is_rtl: false });
 		builder.add(parsed.blocks ?? []);
 		builder.divider();
-		builder.footer('Sent by a bot');
+		builder.footer().add('Sent by a bot');
 
 		expect(builder.buildMessage()).toEqual({
 			blocks: [

@@ -1,6 +1,12 @@
 import type * as TT from '@grammyjs/types';
 
-import { createFormatter } from '../utils/formatter.ts';
+import {
+	createFormatter,
+	interleaveTemplate,
+	isTemplateStrings,
+} from '../utils/formatter.ts';
+
+import { measureRichText } from './measure.ts';
 
 /**
  * A resolvable rich text, which can be a raw Telegram `RichText`
@@ -179,12 +185,15 @@ export const button = {
 };
 
 /**
- * Format helpers bound to a {@link RichTextBuilder}, exposed as `builder.fr`.
+ * The format helpers of {@link fr}.
+ *
+ * Each helper builds a fresh {@link RichTextBuilder} out of a tagged template, which is
+ * then handed to `add()`: ``builder.add(fr.bold`hi`)``.
  *
  * @category Rich Message Types
  * @since Bot API 10.1
  */
-export interface BoundFormatRichText<B extends RichTextBuilder> {
+export interface FormatRichTextHelpers<B extends RichTextBuilder> {
 	/** Format text as bold (bold text) */
 	bold(strings: TemplateStringsArray, ...values: ResolvableRichText[]): B;
 	/** Format text as italic (italic text) */
@@ -293,19 +302,23 @@ export class RichTextBuilder {
 	#parent?: RichTextBuilder;
 
 	/**
-	 * Format helpers bound to this builder.
+	 * Appends nodes after checking that this builder may still be written to.
+	 *
+	 * Every mutating method funnels through here so that a frozen block reference has a
+	 * single place to refuse the write.
 	 */
-	public get fr(): BoundFormatRichText<this> {
-		return new Proxy(fr, {
-			get: (target, prop) => {
-				if (prop in target) {
-					return (
-						target[prop as keyof typeof fr] as (builder: RichTextBuilder) => unknown
-					)(this);
-				}
-				return undefined;
-			},
-		}) as unknown as BoundFormatRichText<this>;
+	#push(...nodes: TT.RichText[]): void {
+		this._assertWritable();
+		this.#nodes.push(...nodes);
+	}
+
+	/**
+	 * Hook for subclasses that can be frozen; the plain builder never refuses a write.
+	 *
+	 * @throws {TypeError} In a subclass, if the builder has been frozen.
+	 */
+	protected _assertWritable(): void {
+		// A plain builder is always writable.
 	}
 
 	/**
@@ -369,12 +382,28 @@ export class RichTextBuilder {
 	/**
 	 * Adds resolvable rich text to the builder.
 	 */
-	public add(text: ResolvableRichText): this {
-		const unwrapped = unwrapRichText(text);
+	public add(text: ResolvableRichText): this;
+	/**
+	 * Adds rich text written as a tagged template.
+	 *
+	 * @param strings - The literal parts of the template.
+	 * @param values - The interpolated resolvable rich text.
+	 * @returns The current builder instance for chaining.
+	 * @since Bot API 10.1
+	 */
+	public add(strings: TemplateStringsArray, ...values: ResolvableRichText[]): this;
+	public add(
+		text: ResolvableRichText | TemplateStringsArray,
+		...values: ResolvableRichText[]
+	): this {
+		const resolvable: ResolvableRichText = isTemplateStrings(text)
+			? interleaveTemplate(text, values)
+			: text;
+		const unwrapped = unwrapRichText(resolvable);
 		if (Array.isArray(unwrapped)) {
-			this.#nodes.push(...unwrapped);
+			this.#push(...unwrapped);
 		} else {
-			this.#nodes.push(unwrapped);
+			this.#push(unwrapped);
 		}
 		return this;
 	}
@@ -387,7 +416,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public bold(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'bold', text: unwrapRichText(text) });
+		this.#push({ type: 'bold', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -399,7 +428,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public italic(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'italic', text: unwrapRichText(text) });
+		this.#push({ type: 'italic', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -411,7 +440,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public underline(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'underline', text: unwrapRichText(text) });
+		this.#push({ type: 'underline', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -423,7 +452,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public strikethrough(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'strikethrough', text: unwrapRichText(text) });
+		this.#push({ type: 'strikethrough', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -435,7 +464,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public spoiler(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'spoiler', text: unwrapRichText(text) });
+		this.#push({ type: 'spoiler', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -447,7 +476,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public subscript(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'subscript', text: unwrapRichText(text) });
+		this.#push({ type: 'subscript', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -459,7 +488,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public superscript(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'superscript', text: unwrapRichText(text) });
+		this.#push({ type: 'superscript', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -471,7 +500,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public marked(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'marked', text: unwrapRichText(text) });
+		this.#push({ type: 'marked', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -483,7 +512,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public code(text: ResolvableRichText): this {
-		this.#nodes.push({ type: 'code', text: unwrapRichText(text) });
+		this.#push({ type: 'code', text: unwrapRichText(text) });
 		return this;
 	}
 
@@ -501,7 +530,7 @@ export class RichTextBuilder {
 		unixTime: number,
 		format: TT.RichTextDateTime['date_time_format'],
 	): this {
-		this.#nodes.push({
+		this.#push({
 			type: 'date_time',
 			text: unwrapRichText(text),
 			unix_time: unixTime,
@@ -519,7 +548,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public textMention(text: ResolvableRichText, user: TT.User): this {
-		this.#nodes.push({ type: 'text_mention', text: unwrapRichText(text), user });
+		this.#push({ type: 'text_mention', text: unwrapRichText(text), user });
 		return this;
 	}
 
@@ -532,7 +561,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public url(text: ResolvableRichText, url: string): this {
-		this.#nodes.push({ type: 'url', text: unwrapRichText(text), url });
+		this.#push({ type: 'url', text: unwrapRichText(text), url });
 		return this;
 	}
 
@@ -545,7 +574,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public emailAddress(text: ResolvableRichText, emailAddress: string): this {
-		this.#nodes.push({
+		this.#push({
 			type: 'email_address',
 			text: unwrapRichText(text),
 			email_address: emailAddress,
@@ -562,7 +591,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public phoneNumber(text: ResolvableRichText, phoneNumber: string): this {
-		this.#nodes.push({
+		this.#push({
 			type: 'phone_number',
 			text: unwrapRichText(text),
 			phone_number: phoneNumber,
@@ -579,7 +608,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public bankCardNumber(text: ResolvableRichText, bankCardNumber: string): this {
-		this.#nodes.push({
+		this.#push({
 			type: 'bank_card_number',
 			text: unwrapRichText(text),
 			bank_card_number: bankCardNumber,
@@ -596,7 +625,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public anchorLink(text: ResolvableRichText, anchorName: string): this {
-		this.#nodes.push({
+		this.#push({
 			type: 'anchor_link',
 			text: unwrapRichText(text),
 			anchor_name: anchorName,
@@ -613,7 +642,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public reference(text: ResolvableRichText, name: string): this {
-		this.#nodes.push({ type: 'reference', text: unwrapRichText(text), name });
+		this.#push({ type: 'reference', text: unwrapRichText(text), name });
 		return this;
 	}
 
@@ -626,7 +655,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public referenceLink(text: ResolvableRichText, referenceName: string): this {
-		this.#nodes.push({
+		this.#push({
 			type: 'reference_link',
 			text: unwrapRichText(text),
 			reference_name: referenceName,
@@ -643,7 +672,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public mention(username: string, text: ResolvableRichText = username): this {
-		this.#nodes.push({ type: 'mention', text: unwrapRichText(text), username });
+		this.#push({ type: 'mention', text: unwrapRichText(text), username });
 		return this;
 	}
 
@@ -656,7 +685,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public hashtag(hashtag: string, text: ResolvableRichText = hashtag): this {
-		this.#nodes.push({ type: 'hashtag', text: unwrapRichText(text), hashtag });
+		this.#push({ type: 'hashtag', text: unwrapRichText(text), hashtag });
 		return this;
 	}
 
@@ -669,7 +698,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public cashtag(cashtag: string, text: ResolvableRichText = cashtag): this {
-		this.#nodes.push({ type: 'cashtag', text: unwrapRichText(text), cashtag });
+		this.#push({ type: 'cashtag', text: unwrapRichText(text), cashtag });
 		return this;
 	}
 
@@ -682,7 +711,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public botCommand(command: string, text: ResolvableRichText = command): this {
-		this.#nodes.push({
+		this.#push({
 			type: 'bot_command',
 			text: unwrapRichText(text),
 			bot_command: command,
@@ -699,7 +728,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public customEmoji(customEmojiId: string, alternativeText: string): this {
-		this.#nodes.push({
+		this.#push({
 			type: 'custom_emoji',
 			custom_emoji_id: customEmojiId,
 			alternative_text: alternativeText,
@@ -715,19 +744,19 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public mathematicalExpression(expression: string): this {
-		this.#nodes.push({ type: 'mathematical_expression', expression });
+		this.#push({ type: 'mathematical_expression', expression });
 		return this;
 	}
 
 	/**
-	 * Adds an inline button. See {@link button} for factory helpers.
+	 * Adds an inline button, which the `button` factory helpers construct.
 	 *
 	 * @param button - The button to show. See `button` for factory helpers.
 	 * @returns The current builder instance for chaining.
 	 * @since Bot API 10.3
 	 */
 	public button(button: TT.RichMessageButton): this {
-		this.#nodes.push({ type: 'button', button });
+		this.#push({ type: 'button', button });
 		return this;
 	}
 
@@ -739,7 +768,7 @@ export class RichTextBuilder {
 	 * @since Bot API 10.1
 	 */
 	public anchor(anchorName: string): this {
-		this.#nodes.push({ type: 'anchor', name: anchorName });
+		this.#push({ type: 'anchor', name: anchorName });
 		return this;
 	}
 
@@ -760,6 +789,21 @@ export class RichTextBuilder {
 	 */
 	public buildText(): TT.RichText {
 		return collapse(this.build());
+	}
+
+	/**
+	 * Measures the content collected so far, in the unit the Bot API counts.
+	 *
+	 * The unit is Unicode **code points**, not UTF-16 code units: the server accepts
+	 * 16385 astral characters (32770 code units) and rejects 32769 ASCII ones. The
+	 * classic side of this package counts UTF-16 code units for `MessageEntity.offset`,
+	 * so do not compare the two numbers.
+	 *
+	 * @returns The number of code points this text contributes to a message.
+	 * @since Bot API 10.1
+	 */
+	public measureText(): number {
+		return measureRichText(this.build());
 	}
 }
 
@@ -822,4 +866,4 @@ export const fr = Object.assign(formatRichText, {
 	botCommand: fmt.embed('botCommand'),
 	button: fmt.embed('button'),
 	anchor: fmt.embed('anchor'),
-}) satisfies BoundFormatRichText<RichTextBuilder>;
+}) satisfies FormatRichTextHelpers<RichTextBuilder>;
